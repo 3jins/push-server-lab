@@ -1,8 +1,12 @@
-const http = require('http');
+import path from 'path';
+import Koa from 'koa';
+import Router from 'koa-router';
+import render from 'koa-ejs';
+import serve from 'koa-static';
 
-const hostname = '127.0.0.1';
+const app = new Koa();
 const port = 3000;
-
+const publicPath = path.join(__dirname, 'public');
 const data = {
   'value1': 0,
 };
@@ -10,18 +14,31 @@ const data = {
 // TODO(sejin): Refactor this to avoid the memory leak
 const increaseDataPeriodically = () => {
   setTimeout(() => {
-    if(data.hasOwnProperty('value1')) data['value1']++;
+    if (data.hasOwnProperty('value1')) data.value1++;
     increaseDataPeriodically();
   }, 1000);
 };
 
-const server = http.createServer((req, res) => {
-  res.statusCode = 200;
-  res.setHeader('Content-Type', 'text/plain');
-  res.end(data['value1'].toString());
+render(app, {
+  root: publicPath,
+  layout: false,
+  viewExt: 'html',
+  cache: false,
+  debug: false,
 });
 
-server.listen(port, hostname, () => {
-  console.log(`Server running at http://${hostname}:${port}/`);
+const router = new Router();
+router.get('/short-polling', async (ctx) => {
+  await ctx.render('short-polling', {
+    data
+  });
+});
+
+app.use(serve(publicPath));
+
+app.use(router.routes());
+
+app.listen(port, () => {
+  console.log(`Server is listening to port ${port}`);
   increaseDataPeriodically();
 });
